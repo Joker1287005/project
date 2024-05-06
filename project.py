@@ -2,119 +2,114 @@ import tkinter as tk
 from tkinter import messagebox
 import datetime
 
-class HotelBookingSystem:
-    def __init__(self):
-        self.rooms = {101: "szabad", 102: "szabad", 103: "szabad"}  # 3 szoba
-        self.bookings = {}
+class Szoba:
+    def __init__(self, szobaszam, szobatipus, ar):
+        self.szobaszam = szobaszam
+        self.szobatipus = szobatipus
+        self.ar = ar
+        self.foglalt_datumok = []
 
-    def make_reservation(self, room_number, date):
-        if room_number not in self.rooms:
-            messagebox.showerror("Hiba", "Hibás szobaszám.")
-            return False
-        if self.rooms[room_number] != "szabad":
-            messagebox.showerror("Hiba", "A szoba foglalt.")
-            return False
-        if date <= datetime.datetime.now():
-            messagebox.showerror("Hiba", "Csak jövőbeni foglalás lehetséges.")
-            return False
-        self.rooms[room_number] = "foglalt"
-        self.bookings[(room_number, date)] = "foglalva"
-        messagebox.showinfo("Siker", "Foglalás sikeres!")
-        return True
+    def foglalas(self, datum):
+        self.foglalt_datumok.append(datum)
 
-    def cancel_reservation(self, room_number, date):
-        if (room_number, date) not in self.bookings:
-            messagebox.showerror("Hiba", "Nincs ilyen foglalás.")
-            return False
-        del self.bookings[(room_number, date)]
-        self.rooms[room_number] = "szabad"
-        messagebox.showinfo("Siker", "Lemondás sikeres!")
-        return True
+    def lemondas(self, datum):
+        if datum in self.foglalt_datumok:
+            self.foglalt_datumok.remove(datum)
 
-    def list_bookings(self):
-        if not self.bookings:
+class Szalloda:
+    def __init__(self, nev):
+        self.nev = nev
+        self.szobak = {}
+
+    def szoba_hozzaadasa(self, szobaszam, szobatipus, ar):
+        if szobaszam not in self.szobak:
+            self.szobak[szobaszam] = Szoba(szobaszam, szobatipus, ar)
+
+    def foglalas(self, szobaszam, datum):
+        if szobaszam in self.szobak:
+            szoba = self.szobak[szobaszam]
+            if datum in szoba.foglalt_datumok:
+                messagebox.showerror("Hiba", "A szoba már foglalt ezen a dátumon.")
+            else:
+                szoba.foglalas(datum)
+                messagebox.showinfo("Siker", f"Foglalás sikeres! Szoba: {szobaszam} ({szoba.szobatipus}), Ár: {szoba.ar} Ft")
+        else:
+            messagebox.showerror("Hiba", "Nincs ilyen szoba.")
+
+    def lemondas(self, szobaszam, datum):
+        if szobaszam in self.szobak:
+            szoba = self.szobak[szobaszam]
+            if datum in szoba.foglalt_datumok:
+                szoba.lemondas(datum)
+                messagebox.showinfo("Siker", "Lemondás sikeres!")
+            else:
+                messagebox.showerror("Hiba", "Nincs ilyen foglalás ezen a dátumon.")
+        else:
+            messagebox.showerror("Hiba", "Nincs ilyen szoba.")
+
+    def listaz_foglalasok(self):
+        foglalasok = ""
+        for szobaszam, szoba in self.szobak.items():
+            for datum in szoba.foglalt_datumok:
+                foglalasok += f"Szoba: {szobaszam} ({szoba.szobatipus}), Ár: {szoba.ar} Ft, Dátum: {datum}\n"
+        if not foglalasok:
             messagebox.showinfo("Információ", "Nincsenek foglalások.")
-            return
-        bookings_info = "Foglalások:\n"
-        for (room_number, date) in self.bookings.keys():
-            bookings_info += f"Szoba: {room_number}, Dátum: {date}\n"
-        messagebox.showinfo("Foglalások", bookings_info)
+        else:
+            messagebox.showinfo("Foglalások", foglalasok)
 
-def load_initial_data(system):
-    # 1 szálloda, 3 szoba, 5 foglalás
-    for room_num in range(101, 104):
-        system.rooms[room_num] = "szabad"
-    system.bookings = {
-        (101, datetime.datetime(2024, 5, 1)): "foglalva",
-        (101, datetime.datetime(2024, 5, 3)): "foglalva",
-        (102, datetime.datetime(2024, 5, 2)): "foglalva",
-        (102, datetime.datetime(2024, 5, 4)): "foglalva",
-        (103, datetime.datetime(2024, 5, 5)): "foglalva",
-    }
+def make_reservation():
+    szobaszam = int(szoba_entry.get())
+    datum_str = datum_entry.get()
+    try:
+        datum = datetime.datetime.strptime(datum_str, "%Y-%m-%d")
+        szalloda.foglalas(szobaszam, datum)
+    except ValueError:
+        messagebox.showerror("Hiba", "Hibás dátum formátum.")
 
-def make_reservation_window():
-    reservation_window = tk.Toplevel()
-    reservation_window.title("Foglalás")
-    reservation_window.geometry("400x350")
-    tk.Label(reservation_window, text="Szobaszám:").pack()
-    room_number_entry = tk.Entry(reservation_window)
-    room_number_entry.pack()
-    tk.Label(reservation_window, text="Dátum (ÉÉÉÉ-HH-NN):").pack()
-    date_entry = tk.Entry(reservation_window)
-    date_entry.pack()
+def cancel_reservation():
+    szobaszam = int(szoba_entry.get())
+    datum_str = datum_entry.get()
+    try:
+        datum = datetime.datetime.strptime(datum_str, "%Y-%m-%d")
+        szalloda.lemondas(szobaszam, datum)
+    except ValueError:
+        messagebox.showerror("Hiba", "Hibás dátum formátum.")
 
-    def make_reservation():
-        room_num = int(room_number_entry.get())
-        date_str = date_entry.get()
-        try:
-            date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
-            messagebox.showerror("Hiba", "Hibás dátum formátum.")
-            return
-        hotel_system.make_reservation(room_num, date)
-        reservation_window.destroy()
+def list_reservations():
+    szalloda.listaz_foglalasok()
 
-    tk.Button(reservation_window, text="Foglalás", command=make_reservation).pack()
+def load_initial_data():
+    szalloda.szoba_hozzaadasa(101, "Egyágyas", 10000)
+    szalloda.szoba_hozzaadasa(102, "Egyágyas", 12000)
+    szalloda.szoba_hozzaadasa(103, "Egyágyas", 13000)
+    szalloda.szoba_hozzaadasa(201, "Kétágyas", 15000)
+    szalloda.szoba_hozzaadasa(202, "Kétágyas", 18000)
 
-def cancel_reservation_window():
-    cancel_window = tk.Toplevel()
-    cancel_window.title("Lemondás")
-    cancel_window.geometry("400x350")
-    tk.Label(cancel_window, text="Szobaszám:").pack()
-    room_number_entry = tk.Entry(cancel_window)
-    room_number_entry.pack()
-    tk.Label(cancel_window, text="Dátum (ÉÉÉÉ-HH-NN):").pack()
-    date_entry = tk.Entry(cancel_window)
-    date_entry.pack()
+    # Példa foglalások
+    szalloda.foglalas(101, datetime.datetime(2024, 5, 1))
+    szalloda.foglalas(101, datetime.datetime(2024, 5, 2))
+    szalloda.foglalas(102, datetime.datetime(2024, 5, 3))
+    szalloda.foglalas(103, datetime.datetime(2024, 5, 4))
+    szalloda.foglalas(201, datetime.datetime(2024, 5, 5))
 
-    def cancel_reservation():
-        room_num = int(room_number_entry.get())
-        date_str = date_entry.get()
-        try:
-            date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
-            messagebox.showerror("Hiba", "Hibás dátum formátum.")
-            return
-        hotel_system.cancel_reservation(room_num, date)
-        cancel_window.destroy()
+szalloda = Szalloda("Sam Szálloda")
 
-    tk.Button(cancel_window, text="Lemondás", command=cancel_reservation).pack()
+root = tk.Tk()
+root.title(f"{szalloda.nev} - Foglalás")
+root.geometry("300x200")
 
-def main():
-    global hotel_system
-    hotel_system = HotelBookingSystem()
-    load_initial_data(hotel_system)
+tk.Label(root, text="Szobaszám:").pack()
+szoba_entry = tk.Entry(root)
+szoba_entry.pack()
 
-    root = tk.Tk()
-    root.title("Szállodai foglalás")
-    root.geometry("400x350")
+tk.Label(root, text="Dátum (ÉÉÉÉ-HH-NN):").pack()
+datum_entry = tk.Entry(root)
+datum_entry.pack()
 
-    tk.Button(root, text="Foglalás", command=make_reservation_window).pack()
-    tk.Button(root, text="Lemondás", command=cancel_reservation_window).pack()
-    tk.Button(root, text="Foglalások listázása", command=hotel_system.list_bookings).pack()
-    tk.Button(root, text="Kilépés", command=root.quit).pack()
+tk.Button(root, text="Foglalás", command=make_reservation).pack()
+tk.Button(root, text="Lemondás", command=cancel_reservation).pack()
+tk.Button(root, text="Foglalások listázása", command=list_reservations).pack()
 
-    root.mainloop()
+load_initial_data()
 
-if __name__ == "__main__":
-    main()
+root.mainloop()
